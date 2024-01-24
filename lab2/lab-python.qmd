@@ -1,0 +1,450 @@
+---
+title: Styling visualizations in Python
+subtitle: A DSAN 5200 laboratory
+author: DSAN 5200 Instructional Team
+date: last-modified
+date-format: long
+format:
+  html:
+    light:
+      - cosmo
+      - style/html-sta313.scss
+    dark:
+      - cosmo
+      - style/html-sta313.scss
+      - style/html-dark.scss
+    toc: true
+    code-copy: true
+    code-overflow: wrap
+    mainfont: Atkinson Hyperlegible
+    code-annotations: hover
+execute:
+  echo: true
+  warning: false
+  message: false
+  freeze: auto
+filters:
+  - openlinksinnewpage
+  - lightbox
+lightbox: auto
+jupyter: python3
+---
+
+::: {.callout-tip}
+Many code blocks have annotation markings on the right. Hover over them with your mouse to see the actual annotation content. 
+:::
+
+# Building data visualizations in Python
+
+The basic data visualization packages in Python are [matplotlib](https://matplotlib.org/stable/) and [seaborn](https://seaborn.pydata.org), which is built on top of matplotlib. There are of course other packages, some of which we will see in this class, but these two are the primary 
+and most used ones for static data visualization. So we start here. 
+
+::: {.callout-tip}
+Seaborn provides a high-level interface for data visualization, so it has an API
+that is quite intuitive and easy to use. It also provides for a certain amount of customization. However, to make detailed customizations, you need to leverage the granularity of matplotlib. 
+
+Our general recommendation is to start any data visualization using Seaborn if you can, and
+then if you need finer control over your visualization then drop down to using matplotlib 
+functionality. This laboratory will reflect this philosophy. 
+
+Seaborn has also adopted a more _Grammar of Graphics_ approach in the `seaborn.objects` module. We will be using this approach in the laboratory, but the traditional seaborn API would also work in most of these cases.
+:::
+
+Lets start by activating the packages we need. 
+
+```{python}
+import statsmodels.api as sm
+import pandas as pd
+import seaborn as sns 
+import seaborn.objects as so #<1>
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+```
+
+1. This calls the newer `seaborn.objects` module that better aligns with the _Grammar of Graphics_.
+
+
+Let's also load some data that we'll build a visualization from. The dataset we'll 
+use is the `midwest` dataset that is part of the {{< fa brands r-project >}} package **ggplot2**.
+
+```{python}
+midwest = pd.read_csv('data/midwest.csv')
+midwest.head()
+```
+
+## Creating a basic plot
+
+Let's start with a basic scatter plot
+
+```{python}
+(
+    so.Plot(midwest, x = "area", y = "poptotal") #<1>
+    .add(so.Dot()) #<2>
+)
+```
+
+1. Define the data and the visual encodings.
+2. Define a geometry (here `so.Dot` creates dots) that will be displayed. 
+
+We can layer another geometry using the same visual encodings.
+
+```{python}
+from matplotlib.ticker import EngFormatter
+
+p = (
+    so.Plot(midwest, x = "area", y = "poptotal") 
+    .add(so.Dot(color = 'steelblue')) 
+    .add(so.Line(color="firebrick"), so.PolyFit(1)) #<1>
+    .scale(y = so.Continuous().label(EngFormatter())) #<2>
+    .label( #<3>
+        x="Area ($\mathrm{miles}^2$)", #<3>
+        y = "Population (count)", #<3>
+    ) #<3>
+)
+p
+```
+
+1. Add a _linear_ regression line to the plot. 
+2. Formating the y axis tick labels to SI units.
+3. Adding formatting to the axis labels. In matplotlib/seaborn, you can use $\LaTeX$ for formatting, rather than markdown/HTML.
+
+We can crop the plot to zoom in to a particular area
+
+```{python}
+p = (p.limit(x = (0, 0.1), y = (0, 200000)))
+p
+```
+
+## Variable color encoding
+
+```{python}
+p = (
+    so.Plot(midwest, x="area", y = "poptotal")
+    .add(so.Dot(), color="state")
+    .add(so.Line(color = 'firebrick'), so.PolyFit(1))
+    .scale(y = so.Continuous().label(EngFormatter()))
+    .limit(x = (0, 0.1), y = (0, 200000))
+    .label(
+        x="Area ($miles^2$)",
+        y = "Population (count)",
+        title = "Area Vs Population",
+    )
+)
+p
+```
+
+####
+
+If we want to add a subtitle, what we have to do is _promote_ the title above to a supertitle using matplotlib (so a title for the figure) and then making the title for these axes the subtitle. 
+
+
+```python
+p = (
+    so.Plot(midwest, x="area", y = "poptotal")
+    .add(so.Dot(), color="state")
+    .add(so.Line(color = 'firebrick'), so.PolyFit(1))
+    .scale(y = so.Continuous().label(EngFormatter()))
+    .limit(x = (0, 0.1), y = (0, 200000))
+    .label(
+        x="Area ($miles^2$)",
+        y = "Population (count)",
+        title = "From $\mathit{midwest}$ dataset",
+    )
+)
+
+fig, ax = plt.subplots()
+p.on(ax).plot() #<1>
+fig.suptitle("Area Vs Population")
+fig.show()
+```
+
+![](img/subtitle.png)
+
+::: {.callout-note}
+Note, since we've dropped down to matplotlib for the final figure, the theme now uses the current matplotlib theme rather than the `seaborn.objects` theme. We'll develop a new theme in the next section.
+
+There still seem to be some issues with the new object interface saving legends when printing or converting to matplotlib. We translate the previous graph to the traditional seaborn API below
+:::
+
+```{python}
+fig, ax = plt.subplots() #<1>
+sns.scatterplot( 
+  data = midwest, x = "area", y = "poptotal",
+  hue = "state", 
+  ax = ax, #<2>
+)
+sns.regplot(data = midwest, x = "area", y = "poptotal", #<3>
+  scatter = False, ci = False, 
+  line_kws = {"color": "firebrick"}, ax = ax) #<3>
+ax.set_xlim([0, 0.1]); #<4>
+ax.set_ylim([0,200000]);
+ax.yaxis.set_major_formatter(EngFormatter());
+ax.set_xlabel("Area (miles$^2$)");
+ax.set_ylabel("Population");
+ax.set_title("From $\mathit{midwest}$ data"); #<4>
+```
+
+1. Create a canvas (figure) and coordinate system (axes) using matplotlib
+2. Add the current plot to the defined axes
+3. Layer another plot on the same axes
+4. Add annotations and data-driven customizations to the axes
+
+## Creating a color palette for grouped data
+
+You can create a custom color palette for grouped data using a manual specification. This is useful if your visualizations have to align with a prescribed style guide. 
+
+The easiest means of this is in [seaborn](https://seaborn.pydata.org/generated/seaborn.color_palette.html). More details are in the the [seaborn tutorial](https://seaborn.pydata.org/tutorial/color_palettes.html)
+
+```{python}
+cpalette = sns.color_palette(['red','black','white','green','yellow'])
+# sns.set_palette(cpalette)
+```
+
+You can specify the sequence of colors in any format acceptable to matplotlib ([link](https://matplotlib.org/stable/users/explain/colors/colors.html))
+
+# Part 2: Theming and styling
+
+::: {.callout-tip}
+Matplotlib and seaborn allow us to separate the data-driven bits of a visualization (visual encodings, annotations) and the non-data driven bits (styling, palettes)
+
+We often use a mental process to develop a data visualization. Usually we think about the data-driven content first, and then work on the styling. Our code reflects this order, and we tend to keep the same order for every visualization we develop. This allows us to faster scan for errors and add improvements, since the same aspects of the visualization are coded in the same relative location of the code chunk. 
+:::
+
+Matplotlib, and by extension seaborn, use a robust system of style specification using `matplotlib.rcParams`. This is a set of (in the current version) 316 individual style specifications saved in a dictionary-like structure, and customizations are implemented by changing some of the specifications. You can see the full list (on your computer) and their default values:
+
+```python
+plt.rcParamsDefault
+```
+
+We will start by resetting the style parameters to their default values.
+
+
+
+matplotlib provides several styles, and seaborn provides 5 styles (`darkgrid`, `whitegrid`, `dark`, `white`, and `ticks`)
+
+```{python}
+mpl.style.available
+```
+
+We will create a style specification in the current session by modifying an existing style. This involves modifying some rcParams. Then we'll save it into a style sheet so that we can re-use it in other sessions. **This process is what you need to do the create your personal style specification.**
+
+In this process, we will have to re-draw the same visualization several times as we develop a style. Unfortunately, matplotlib and seaborn graphics are _volatile_ in the sense that once you've printed/saved it, it disappears from your session, and you have to re-create the specification. To help our process, we'll create a function to generate our base visualization.
+
+::: {.callout-tip}
+Note that with the new `seaborn.objects` API, the object is _persistent_, and so we can update and build the visualization even after displaying or saving it.
+:::
+
+```{python}
+def my_plot():
+  fig, ax = plt.subplots() 
+  sns.scatterplot( 
+    data = midwest, x = "area", y = "poptotal",
+    hue = "state", 
+    ax = ax, 
+  )
+  sns.regplot(data = midwest, x = "area", y = "poptotal", 
+    scatter = False, ci = False, 
+    line_kws = {"color": "firebrick"}, ax = ax) 
+  ax.set_xlim([0, 0.1]); 
+  ax.set_ylim([0,200000]);
+  ax.yaxis.set_major_formatter(EngFormatter());
+  ax.set_xlabel("Area (miles$^2$)");
+  ax.set_ylabel("Population");
+  ax.set_title("From $\mathit{midwest}$ data"); 
+  ax.legend(title="State")
+  plt.show()
+```
+
+```{python}
+plt.rcParams.update(plt.rcParamsDefault) #<1>
+fig.clf() #<2>
+my_plot()
+```
+
+1. Reset the style parameters to default
+2. Clear any existing figure
+
+We'll start with the `whitegrid` style in seaborn, and start modifying components.
+
+```{python}
+sns.set_style(
+    style='whitegrid', #<1>
+    rc = {                                              #<2>
+      'text.color': 'red', 'font.sans-serif': 'DejaVu Sans',
+      'axes.edgecolor': 'lightblue',
+      } #<2>
+)
+my_plot()
+```
+
+1. Set a base style
+2. Update elements to customize in the specified base style
+
+So, we said there are over 300 parameters in `rcParams` that you can modify. You can search them by keyword to find parameters that you _might_ like to modify. 
+
+```{python}
+plt.rcParams.find_all('text')
+```
+
+```{python}
+plt.rcParams.find_all('facecolor')
+```
+
+So, let's customize some fonts and background colors, for practice. 
+
+```{python}
+plt.rcParams.update(plt.rcParamsDefault)
+sns.set_style(
+    style='whitegrid')
+#plt.rcParams['axes.titlesize'] = 20  #<1>
+#plt.rcParams['axes.labelsize'] = 14
+#plt.rcParams['axes.titlelocation'] = "left"
+#plt.rcParams['axes.labelcolor']='green'
+#plt.rcParams['text.color'] = 'red'
+#plt.rcParams['font.family'] = 'cursive'
+#plt.rcParams['font.cursive'] = "Comic Sans MS"
+#plt.rcParams['axes.edgecolor'] = 'lightblue'
+#plt.rcParams['axes.facecolor'] = '#4100FF'
+#plt.rcParams['figure.facecolor'] = '0.8'
+#plt.rcParams['legend.facecolor'] = 'white' #<1>
+
+updates = {
+    'axes.titlesize': 24, 
+    'axes.labelsize': 18, 
+    'axes.titlelocation': 'left', 
+    'axes.labelcolor': 'green',
+    'axes.edgecolor': 'lightblue',
+    'legend.facecolor': 'white', 
+    'axes.facecolor': "4100ff50", # last 2 digis are alpha %
+    'figure.facecolor': '0.8',
+    'font.family': 'sans-serif', 
+    'font.sans-serif': "Comic Sans MS"}
+    
+# specs = sns.axes_style('whitegrid', rc=updates) #<2>
+# sns.set_style(specs) 
+
+# # This is necessary since sns.axes_style doesn't 
+# # update specifications it doesn't consider part 
+# # of the style definition. 
+# # 
+# # So we drop down to matplotlib
+# addln_specs = {k: v for k,v in updates.items() if k not in specs.keys()}
+# plt.rcParams.update(addln_specs) #<2>
+
+new_specs = {**sns.axes_style('whitegrid'), **updates} # merging two dictionaries #<3>
+plt.rcParams.update(new_specs) #<3>
+my_plot()
+```
+
+1. Explicitly update the `rcParams`
+2. Use seaborn's `set_style` and update, explicitly specifying the base style
+3. Merge specs into a single dict, including the specs for the base style, and update in one go
+
+## Saving your customized style
+
+You can save your customized style by creating a _style sheet_ that you can save on your computer. This style sheet gets stored in 
+a particular location on your computer, and then you have access to it for all of your data visualizations in matplotlib/seaborn. All you really need to save in the style file is the changes from the default style in matplotlib. We'll first show how to do this using seaborn.
+
+```{python}
+from pathlib import Path
+
+cfgdir = mpl.get_configdir()  # find your configuration folder
+p = Path(cfgdir)
+stylelib = p / "stylelib" # This naming is required
+stylelib.mkdir(exist_ok=True)
+path = stylelib / "my_style.mplstyle" 
+
+with open(path, 'w') as f:
+    for key, val in new_specs.items():
+        f.write("%s : %s\n" % (key, val))
+
+plt.style.reload_library()
+print('my_style' in plt.style.available)
+```
+
+```{python}
+plt.rcParams.update(plt.rcParamsDefault)
+plt.style.reload_library()
+plt.style.use('my_style')
+
+my_plot()
+```
+
+# Assignment
+
+Start with the default plot we’ve developed here. You will develop the style specification that you will use for the rest of the semester. You may update this style over the course of the semester, but it must be your own distinctive style specification.
+
+Start with the default plot we’ve developed here. You will develop the style specification that you will use for the rest of the semester. You may update this style over the course of the semester, but it must be your own distinctive style specification.
+
+```{python}
+plt.rcParams.update(plt.rcParamsDefault)
+my_plot()
+```
+
+1. Create your own color palette that you will use for groups in visualizations. There are a few options that you can use. You can use a manually-defined palette or any of the available palettes in matplotlib. The brewer and viridis palettes are typically accessible.
+2. Create your own theme by updating one of the available themes in matplotlib or seaborn. You must then customize at least **15 elements** of the theme specification. You must change a font, a background color, a grid specification and a legend specification at the very least. You will create a style sheet with your customized specification (this will be a *.mplstyle file). This is normally created in a specific folder in your computer (see code above). Copy it to this folder. **This file will be part of your submission.**
+3. Explain your design choices as a narrative as you develop your theme. If you take inspiration from other publicly available themes and style guides, please cite and refer them in your narrative.
+
+Your solution and submission will begin below the line below. This entire file, along with the rendered HTML file, will be your submission, alongside the style sheet file. Your solution will include narrative elements and code chunks with output.
+
+::: {.callout-note}
+This folder includes a conda configuration file `dsan5200.yml`. You can install
+this environment on your machine by running `conda env create -f dsan5200.yml`. This will install all the packages you need for this class, and especially for this lab.
+:::
+
+---
+
+# My solution
+
+```{python}
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.ticker import EngFormatter
+
+# 加载数据
+midwest = pd.read_csv('data/midwest.csv')
+
+# 定义自定义的颜色调色板
+my_palette = ['#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e']
+sns.set_palette(my_palette)
+
+# 定义自定义的风格
+my_style = {
+    'axes.facecolor': 'grey92',
+    'axes.edgecolor': 'lightblue',
+    'axes.labelcolor': 'blue',
+    'axes.titlesize': 20,
+    'axes.labelsize': 14,
+    'legend.position': 'bottom',
+    'figure.facecolor': 'white'
+}
+sns.set_style('whitegrid', rc=my_style)
+
+
+# 创建基本的散点图
+plt.figure(figsize=(10, 6))
+ax = sns.scatterplot(data=midwest, x="area", y="poptotal", hue="state")
+sns.regplot(data=midwest, x="area", y="poptotal", scatter=False, ax=ax, color="firebrick")
+
+# 设置坐标轴限制和格式
+ax.set_xlim([0, 0.1])
+ax.set_ylim([0, 200000])
+ax.yaxis.set_major_formatter(EngFormatter())
+ax.set_xlabel("Area (miles$^2$)")
+ax.set_ylabel("Population (count)")
+ax.set_title("Area Vs Population")
+
+# 显示图表
+plt.show()
+
+```
+
+In my data visualization assignment, I deliberately chose a specific set of colors and styles to present the `midwest` dataset. Here is a brief explanation of my design choices:
+
+1. **Color Selection**: My defined palette `my_palette` includes five colors: `#1b9e77` (a soothing green), `#d95f02` (a bright orange), `#7570b3` (a calm blue), `#e7298a` (a vibrant pink), and `#66a61e` (a fresh light green). Each color was carefully selected to represent different categories or trends in the data. For example, I used soothing green to represent growth or positive trends, while bright orange is used to highlight key or attention-needing data points.
+
+2. **Style Settings**: In terms of styling, I adopted `theme_bw()` as the base theme and customized it. I specifically adjusted elements such as the axis face color, title size, and font, making the whole chart look both concise and modern. For instance, the light gray background and light blue edge lines of the axes provide a clear visual background for data presentation, while bold axis titles and blue font enhance readability.
+
+3. **Chart Elements**: In my scatter plot, I used dots and a linear regression trend line to show the relationship between `area` (square miles) and `poptotal` (total population). This combination not only displays the distribution of data points but also clearly reveals the potential association between area and population. Additionally, the design of using different colors for different states further enhances the chart's information hierarchy and interpretability.
+

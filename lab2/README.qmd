@@ -1,0 +1,67 @@
+---
+title: "Themes and styles"
+subtitle: "A DSAN 5200 Laboratory"
+# format: gfm
+  # gfm: default
+format:
+  gfm: default
+  html:
+    theme:
+      light: [cosmo, style/html-sta313.scss]
+      dark: [cosmo, style/html-sta313.scss, style/html-dark.scss]
+    toc: true
+    linkcolor: "#866fa3" # Glossy Grape
+    code-copy: true
+    code-overflow: wrap
+    mainfont: "Atkinson Hyperlegible"
+    link-external-icon: true
+    link-external-newwindow: true
+
+execute:
+  echo: false
+  warning: false
+  message: false
+  freeze: auto
+---
+
+# Instructions
+
+This laboratory explores creating custom themes and styles for both R (ggplot2)
+and Python (matplotlib and seaborn). There are two laboratory notebooks, one in
+R and one in Python. The instructor will demonstrate from one of the two
+notebooks, but **you are required to read and complete both notebooks** for this
+lab. You will follow the directions in each to create custom themes within each
+notebook. For the Python notebook, you will also create a matplotlib style file
+which will be part of your submission for grade and completion. All submissions
+will be via GitHub Classroom.
+
+Once you clone the repo to your computer, you can open the `lab-r.html` and
+`lab-python.html` pages in your browser to read through the laboratory and see
+how to create your custom themes. 
+
+The final submission will be denoted by a git commit with the commit
+message `final-submission`. This will be what is evaluated for grade.
+This must include: 
+
+- The file `lab-r.qmd` and the rendered notebook in HTML `lab-r.html`
+- The file `lab-python.qmd` and the rendered notebook in HTML `lab-python.html`
+- The matplotlib style file `my_style.mplstyle`
+
+Files created during the rendering process, and files already in the folder when
+you accept the assignment, are fine to keep in the submission.
+
+# Additional resources
+
+We are developing supplementary resource pages on the website to help you
+develop and understanding of themes and styles in data visualization, in
+addition to class lectures. 
+
+1. [Thematic elements for style
+   guides](https://gu-dsan.github.io/5200-spring-2024/resources/theme-elements.html)
+2. [Themes in R](https://gu-dsan.github.io/5200-spring-2024/resources/theme-r.html)
+3. [Themes in Python](https://gu-dsan.github.io/5200-spring-2024/resources/theme-python.html)
+
+
+
+
+

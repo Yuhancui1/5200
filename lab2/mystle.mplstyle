@@ -1,0 +1,20 @@
+## Axes
+axes.facecolor: grey92
+axes.edgecolor: lightblue
+axes.labelcolor: blue
+axes.titlesize: 20
+axes.labelsize: 14
+
+## Legend
+legend.position: bottom
+
+## Figure
+figure.facecolor: white
+
+## Scatter
+scatter.marker: o
+
+## Grid
+axes.grid: True
+grid.linestyle: --
+grid.color: lightgrey
